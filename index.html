@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NwinTech Money</title>
+<style>
+:root{--navy:#071a2d;--teal:#0d9f83;--pale:#f1f5f9;--muted:#64748b}
+*{box-sizing:border-box}body{margin:0;background:var(--pale);color:#172033;font-family:Arial,sans-serif}
+header{background:var(--navy);color:white;padding:18px max(18px,calc((100% - 960px)/2));display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:21px;font-weight:800}.logo span{color:#20d6b0}
+main{max-width:960px;margin:auto;padding:24px 16px}.muted{color:var(--muted);line-height:1.5}
+.card{background:white;border-radius:16px;padding:20px;margin:16px 0;box-shadow:0 4px 18px #0f172a0a}
+.balance{background:linear-gradient(135deg,#071a2d,#0b7166);color:white;padding:24px;border-radius:18px}.balance h1{font-size:32px;overflow-wrap:anywhere}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.wallets{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.wallet{border:1px solid #e2e8f0;border-radius:12px;padding:16px}.wallet strong{display:block;font-size:20px;margin-top:8px}
+button{border:0;border-radius:9px;padding:12px 15px;font-weight:bold;cursor:pointer;background:var(--teal);color:white}
+button.secondary{background:#e2e8f0;color:#172033}button:disabled{opacity:.5}
+label{display:block;margin:13px 0 6px;font-size:14px;font-weight:bold}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:white;font-size:15px}
+form button,.full{width:100%;margin-top:14px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.notice{background:#fff7ed;color:#9a3412;padding:12px;border-radius:10px;font-size:13px;line-height:1.5}
+.hidden{display:none!important}.message{margin-top:12px;font-size:14px;overflow-wrap:anywhere}.transaction{padding:12px 0;border-bottom:1px solid #e2e8f0;font-size:14px}
+@media(max-width:520px){.row{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.balance h1{font-size:27px}}
+</style>
+</head>
+<body>
+<header><div class="logo">NwinTech <span>Money</span></div><button id="logout" class="secondary hidden">Log out</button></header>
+<main>
+<section id="auth" class="card">
+  <h2 id="authTitle">Create your account</h2>
+  <p class="muted">Your money. Across borders.</p>
+  <form id="authForm">
+    <div id="nameWrap"><label for="name">Full name</label><input id="name" autocomplete="name" required minlength="2"></div>
+    <label for="email">Email</label><input id="email" type="email" autocomplete="email" required>
+    <label for="password">Password</label><input id="password" type="password" autocomplete="new-password" minlength="10" required>
+    <button id="authSubmit">Create account</button>
+  </form>
+  <p class="muted" id="switchLine">Already registered? <a href="#" id="switchAuth">Log in</a></p>
+  <p id="authMessage" class="message"></p>
+</section>
+<section id="dashboard" class="hidden">
+  <h2 id="welcome">Welcome</h2><p class="muted">Your personal currency dashboard.</p>
+  <div class="balance"><small>DEMO TOTAL BALANCE IN NGN</small><h1 id="total">₦0.00</h1><small>Simulated balances only</small></div>
+  <section class="card"><h3>My wallets</h3><div id="wallets" class="wallets"></div></section>
+  <section class="card"><h3>Simulate a deposit</h3><p class="notice">Test only: this does not receive real money.</p>
+    <div class="row"><div><label for="depositCurrency">Currency</label><select id="depositCurrency"><option>USD</option><option>GBP</option><option>EUR</option></select></div><div><label for="depositAmount">Amount</label><input id="depositAmount" type="number" min=".01" step=".01" placeholder="100.00"></div></div>
+    <button class="full" id="depositBtn">Add demo funds</button><p class="message" id="depositMessage"></p>
+  </section>
+  <section class="card"><h3>Convert currency</h3>
+    <div class="row"><div><label for="from">From</label><select id="from"><option>USD</option><option>GBP</option><option>EUR</option><option>NGN</option></select></div><div><label for="to">To</label><select id="to"><option>NGN</option><option>USD</option><option>GBP</option><option>EUR</option></select></div></div>
+    <label for="convertAmount">Amount</label><input id="convertAmount" type="number" min=".01" step=".01" placeholder="Amount to convert">
+    <p class="muted" id="preview">Rates are illustrative demo rates.</p><button id="convertBtn" class="full">Convert demo balance</button><p id="convertMessage" class="message"></p>
+  </section>
+  <section class="card"><h3>Withdraw to bank</h3><p class="notice">Test only: no bank transfer is sent. Do not enter real bank details.</p>
+    <label for="bank">Bank (demo)</label><select id="bank"><option value="">Choose a bank</option><option>Access Bank</option><option>GTBank</option><option>First Bank</option><option>UBA</option><option>Zenith Bank</option><option>Opay</option><option>Moniepoint</option></select>
+    <label for="withdrawAmount">Amount in NGN</label><input id="withdrawAmount" type="number" min=".01" step=".01" placeholder="Amount">
+    <button id="withdrawBtn" class="full">Record demo withdrawal</button><p id="withdrawMessage" class="message"></p>
+  </section>
+  <section class="card"><h3>Recent transactions</h3><div id="transactions" class="muted">No transactions yet.</div></section>
+</section>
+<p class="muted">NwinTech Money prototype. Real receiving accounts, live exchange, and payouts are not enabled.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const symbols={NGN:"₦",USD:"$",GBP:"£",EUR:"€"};
+const names={NGN:"Nigerian Naira",USD:"US Dollar",GBP:"British Pound",EUR:"Euro"};
+let token=localStorage.getItem("nt_token")||"", loginMode=false, config=null;
+async function api(url,options={}){
+  const res=await fetch(url,{...options,headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{}),...(options.headers||{})}});
+  const data=await res.json().catch(()=>({error:"Unexpected server response"}));
+  if(!res.ok)throw new Error(data.error||"Request failed");
+  return data;
+}
+function money(n,c){return symbols[c]+Number(n).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function msg(id,text){$(id).textContent=text;}
+function authView(){
+  $("auth").classList.remove("hidden");$("dashboard").classList.add("hidden");$("logout").classList.add("hidden");
+}
+function appView(){
+  $("auth").classList.add("hidden");$("dashboard").classList.remove("hidden");$("logout").classList.remove("hidden");
+}
+function renderAuthMode(){
+ $("authTitle").textContent=loginMode?"Log in":"Create your account";
+ $("authSubmit").textContent=loginMode?"Log in":"Create account";
+ $("nameWrap").classList.toggle("hidden",loginMode);
+ $("name").required=!loginMode;
+ $("password").autocomplete=loginMode?"current-password":"new-password";
+ $("switchLine").innerHTML=loginMode?'New here? <a href="#" id="switchAuth">Create an account</a>':'Already registered? <a href="#" id="switchAuth">Log in</a>';
+ $("switchAuth").onclick=e=>{e.preventDefault();loginMode=!loginMode;renderAuthMode();msg("authMessage","");};
+}
+renderAuthMode();
+$("authForm").onsubmit=async e=>{
+ e.preventDefault();msg("authMessage","Working…");
+ try{
+  const url=loginMode?"/api/auth/login":"/api/auth/register";
+  const body={email:$("email").value,password:$("password").value};
+  if(!loginMode)body.name=$("name").value;
+  const d=await api(url,{method:"POST",body:JSON.stringify(body)});
+  token=d.token;localStorage.setItem("nt_token",token);await loadDashboard();
+ }catch(err){msg("authMessage",err.message);}
+};
+$("logout").onclick=()=>{token="";localStorage.removeItem("nt_token");authView();};
+async function loadDashboard(){
+ try{config=await api("/api/config");const d=await api("/api/me");appView();$("welcome").textContent="Welcome, "+d.user.name+"!";
+ const walletMap={};d.wallets.forEach(w=>walletMap[w.currency]=Number(w.balance));
+ $("wallets").innerHTML=d.wallets.map(w=>`<div class="wallet">${w.currency} · ${names[w.currency]}<strong>${money(w.balance,w.currency)}</strong></div>`).join("");
+ const total=d.wallets.reduce((s,w)=>s+Number(w.balance)*config.ratesNgn[w.currency],0);$("total").textContent=money(total,"NGN");
+ $("transactions").innerHTML=d.transactions.length?d.transactions.map(t=>`<div class="transaction"><b>${String(t.type).replaceAll("_"," ")}</b><br>${money(t.amount,t.currency)}<br><small>${new Date(t.created_at).toLocaleString()}</small></div>`).join(""):"No transactions yet.";
+ updatePreview();
+ }catch(err){if(token){token="";localStorage.removeItem("nt_token");}authView();msg("authMessage","Please log in. "+err.message);}
+}
+$("depositBtn").onclick=async()=>{try{const d=await api("/api/demo/deposit",{method:"POST",body:JSON.stringify({currency:$("depositCurrency").value,amount:Number($("depositAmount").value)})});msg("depositMessage",d.message);$("depositAmount").value="";await loadDashboard();}catch(e){msg("depositMessage",e.message);}};
+function updatePreview(){if(!config)return;const from=$("from").value,to=$("to").value,amount=Number($("convertAmount").value);$("preview").textContent=amount>0?`${money(amount,from)} ≈ ${money(amount*config.ratesNgn[from]/config.ratesNgn[to],to)} · illustrative rate, no fees`:"Illustrative demo rates only.";}
+["from","to","convertAmount"].forEach(id=>$(id).addEventListener("input",updatePreview));
+$("convertBtn").onclick=async()=>{try{const d=await api("/api/convert",{method:"POST",body:JSON.stringify({from:$("from").value,to:$("to").value,amount:Number($("convertAmount").value)})});msg("convertMessage",`${money(d.amount,d.from)} converted to ${money(d.result,d.to)} (demo only).`);$("convertAmount").value="";await loadDashboard();}catch(e){msg("convertMessage",e.message);}};
+$("withdrawBtn").onclick=async()=>{try{const d=await api("/api/withdrawals",{method:"POST",body:JSON.stringify({bank:$("bank").value,amount:Number($("withdrawAmount").value)})});msg("withdrawMessage",d.message);$("withdrawAmount").value="";await loadDashboard();}catch(e){msg("withdrawMessage",e.message);}};
+(async()=>{try{config=await api("/api/config");if(token)await loadDashboard();}catch(e){msg("authMessage","Server is not ready yet. "+e.message);}})();
+</script>
+</body>
+</html>
